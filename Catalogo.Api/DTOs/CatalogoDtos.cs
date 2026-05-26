@@ -22,3 +22,5 @@ public record AgregarImagenDto(
     string UrlImagen,
     bool EsPortada
 );
+
+record ActualizarStockDto(int Cantidad);

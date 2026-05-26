@@ -287,6 +287,31 @@ app.MapDelete("/api/catalogo/productos/{id:int}", async (
 .WithTags("Productos")
 .WithSummary("Elimina un producto (borrado lógico)");
 
+// PATCH /api/catalogo/productos/{id}/stock
+app.MapMethods("/api/catalogo/productos/{id:int}/stock", ["PATCH"], async (
+    int id,
+    ActualizarStockDto dto,
+    CatalogoDbContext db) =>
+{
+    var producto = await db.Productos
+        .FirstOrDefaultAsync(p => p.Id == id && p.Status == 1);
+
+    if (producto is null)
+        return Results.NotFound(new { error = "Producto no encontrado." });
+
+    if (producto.Stock < dto.Cantidad)
+        return Results.BadRequest(new
+        { error = $"Stock insuficiente. Disponible: {producto.Stock}" });
+
+    producto.Stock -= dto.Cantidad;
+    await db.SaveChangesAsync();
+
+    return Results.Ok(new { producto.Id, producto.Stock });
+})
+.WithName("ActualizarStock")
+.WithTags("Catalogo")
+.WithSummary("Descuenta stock de un producto al comprarlo");
+
 // ── Imágenes ──────────────────────────────────────────────────────
 
 // POST /api/catalogo/productos/{id}/imagenes
