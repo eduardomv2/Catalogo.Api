@@ -149,15 +149,26 @@ app.MapPost("/api/catalogo/marcas", async (
 .WithTags("Marcas")
 .WithSummary("Crea una nueva marca");
 
-// ── Productos ─────────────────────────────────────────────────────
+// ── Productos ──────
 
 // GET /api/catalogo/productos
-app.MapGet("/api/catalogo/productos", async (CatalogoDbContext db) =>
-    Results.Ok(await db.Productos
+app.MapGet("/api/catalogo/productos", async (
+    CatalogoDbContext db,
+    int pagina = 1,
+    int cantidad = 8) =>
+{
+    var query = db.Productos
         .Include(p => p.Categoria)
         .Include(p => p.Marca)
-        .Include(p => p.Imagenes.Where(i => i.Status == 1))
-        .Where(p => p.Status == 1)
+        .Include(p => p.Imagenes)
+        .Where(p => p.Status == 1);
+
+    var total = await query.CountAsync();
+
+    var productos = await query
+        .OrderBy(p => p.Id)
+        .Skip((pagina - 1) * cantidad)
+        .Take(cantidad)
         .Select(p => new
         {
             p.Id,
@@ -173,10 +184,17 @@ app.MapGet("/api/catalogo/productos", async (CatalogoDbContext db) =>
                 .Select(i => i.UrlImagen)
                 .FirstOrDefault()
         })
-        .ToListAsync()))
-.WithName("ObtenerProductos")
-.WithTags("Productos")
-.WithSummary("Lista todos los productos");
+        .ToListAsync();
+
+    return Results.Ok(new
+    {
+        productos,
+        total,
+        pagina,
+        cantidad,
+        hayMas = pagina * cantidad < total
+    });
+});
 
 // GET /api/catalogo/productos/{id}
 app.MapGet("/api/catalogo/productos/{id:int}", async (
@@ -312,7 +330,7 @@ app.MapMethods("/api/catalogo/productos/{id:int}/stock", ["PATCH"], async (
 .WithTags("Catalogo")
 .WithSummary("Descuenta stock de un producto al comprarlo");
 
-// ── Imágenes ──────────────────────────────────────────────────────
+// ── Imágenes ───
 
 // POST /api/catalogo/productos/{id}/imagenes
 app.MapPost("/api/catalogo/productos/{id:int}/imagenes", async (
